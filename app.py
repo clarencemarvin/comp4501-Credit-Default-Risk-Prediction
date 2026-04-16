@@ -29,6 +29,7 @@ MODEL_PATH = ARTIFACT_DIR / "model.txt"
 PREPROCESSOR_PATH = ARTIFACT_DIR / "preprocessor.pkl"
 SCHEMA_PATH = ARTIFACT_DIR / "feature_schema.json"
 TRAIN_REF_PATH = ARTIFACT_DIR / "training_reference.csv"
+GRADE_PATH = ARTIFACT_DIR / "grade_thresholds.json"
 
 # ============================================================
 # GLOBAL STYLING
@@ -512,7 +513,15 @@ st.markdown(
 
 @st.cache_resource
 def load_artifacts():
-    missing = [p.name for p in [MODEL_PATH, PREPROCESSOR_PATH, SCHEMA_PATH, TRAIN_REF_PATH] if not p.exists()]
+    required_paths = [
+        MODEL_PATH,
+        PREPROCESSOR_PATH,
+        SCHEMA_PATH,
+        TRAIN_REF_PATH,
+        GRADE_PATH
+    ]
+
+    missing = [p.name for p in required_paths if not p.exists()]
     if missing:
         raise FileNotFoundError(f"Missing artifact files: {missing}")
 
@@ -523,10 +532,16 @@ def load_artifacts():
         schema = json.load(f)
 
     train_ref = pd.read_csv(TRAIN_REF_PATH)
-    return model, preprocessor, schema, train_ref
 
-model, preprocessor, schema, train_ref = load_artifacts()
+    with open(GRADE_PATH, "r") as f:
+        grade_info = json.load(f)
 
+    return model, preprocessor, schema, train_ref, grade_info
+
+model, preprocessor, schema, train_ref, grade_info = load_artifacts()
+
+grade_labels = grade_info["grade_labels"]
+grade_thresholds = grade_info["grade_thresholds"]
 cat_cols = schema["cat_cols"]
 num_cols = schema["num_cols"]
 feature_cols = schema["feature_cols"]
@@ -614,19 +629,34 @@ def predict_single_applicant(applicant_dict: dict, application_date):
     pd_hat = float(model.predict(X_row)[0])
     return pd_hat, row_df, X_row, macro_dict
 
-def get_risk_bucket(pd_hat: float):
-    if pd_hat < 0.05:
-        return "Low Risk", "risk-low"
-    elif pd_hat < 0.10:
-        return "Moderate Risk", "risk-moderate"
-    elif pd_hat < 0.20:
-        return "Elevated Risk", "risk-elevated"
-    return "High Risk", "risk-high"
+def get_credit_grade(pd_hat: float):
+    bins = np.r_[-np.inf, grade_thresholds, np.inf]
+    grade = pd.cut(
+        [pd_hat],
+        bins=bins,
+        labels=grade_labels,
+        include_lowest=True,
+        right=True
+    )[0]
+    return str(grade)
 
-def get_recommendation(pd_hat: float):
-    if pd_hat < 0.05:
+def get_grade_class(grade: str):
+    if grade == "A":
+        return "risk-low"
+    elif grade == "B":
+        return "risk-low"
+    elif grade == "C":
+        return "risk-moderate"
+    elif grade == "D":
+        return "risk-elevated"
+    elif grade == "E":
+        return "risk-high"
+    return "risk-high"
+
+def get_recommendation_from_grade(grade: str):
+    if grade in ["A", "B"]:
         return "Approve"
-    elif pd_hat < 0.12:
+    elif grade in ["C", "D"]:
         return "Review"
     return "Manual Review"
 
@@ -713,14 +743,17 @@ def join_nicely(items: list):
         return f"{items[0]} and {items[1]}"
     return ", ".join(items[:-1]) + f", and {items[-1]}"
 
-def make_explanation_paragraph(reason_groups: dict, predicted_pd=None, risk_bucket=None):
+def make_explanation_paragraph(reason_groups: dict, predicted_pd=None, credit_grade=None):
     high_risk = reason_groups.get("high_risk_factors", [])
     medium_risk = reason_groups.get("medium_risk_factors", [])
     reducing = reason_groups.get("risk_reducing_factors", [])
 
     intro = ""
-    if predicted_pd is not None and risk_bucket is not None:
-        intro = f"This applicant is classified as <strong>{risk_bucket}</strong> with an estimated probability of default of <strong>{predicted_pd:.1%}</strong>. "
+    if predicted_pd is not None and credit_grade is not None:
+        intro = (
+            f"This applicant is assigned credit grade <strong>{credit_grade}</strong> "
+            f"with an estimated probability of default of <strong>{predicted_pd:.1%}</strong>. "
+        )
 
     para = intro
     if high_risk:
@@ -755,6 +788,8 @@ def get_prediction_explanation(X_row):
 
 def make_colored_gauge(pd_hat: float):
     value = pd_hat * 100
+    t = [x * 100 for x in grade_thresholds]  # convert to %
+    a, b, c, d, e = t
 
     fig = go.Figure(go.Indicator(
         mode="gauge",
@@ -772,10 +807,12 @@ def make_colored_gauge(pd_hat: float):
             "bgcolor": "white",
             "borderwidth": 0,
             "steps": [
-                {"range": [0, 5], "color": "#86efac"},
-                {"range": [5, 10], "color": "#fde68a"},
-                {"range": [10, 20], "color": "#fdba74"},
-                {"range": [20, 100], "color": "#fca5a5"},
+                {"range": [0, a], "color": "#86efac"},
+                {"range": [a, b], "color": "#bbf7d0"},
+                {"range": [b, c], "color": "#fde68a"},
+                {"range": [c, d], "color": "#fdba74"},
+                {"range": [d, e], "color": "#fca5a5"},
+                {"range": [e, 100], "color": "#f87171"},
             ],
             "threshold": {
                 "line": {"color": "#0f172a", "width": 5},
@@ -908,8 +945,8 @@ default_state = {
     "saved_row_df": None,
     "saved_macro_dict": None,
     "saved_grouped_contrib_df": None,
-    "saved_risk_bucket": None,
-    "saved_risk_class": None,
+    "saved_credit_grade": None,
+    "saved_grade_class": None, 
     "saved_recommendation": None,
     "saved_reason_groups": None,
     "saved_explanation_paragraph": None,
@@ -1102,10 +1139,11 @@ if run_btn:
         pd_hat, row_df, X_row, macro_dict = predict_single_applicant(applicant, application_date)
         _, grouped_contrib_df = get_prediction_explanation(X_row)
 
-        risk_bucket, risk_class = get_risk_bucket(pd_hat)
-        recommendation = get_recommendation(pd_hat)
+        credit_grade = get_credit_grade(pd_hat)
+        grade_class = get_grade_class(credit_grade)
+        recommendation = get_recommendation_from_grade(credit_grade)
         reason_groups = classify_reason_groups(grouped_contrib_df)
-        explanation_paragraph = make_explanation_paragraph(reason_groups, pd_hat, risk_bucket)
+        explanation_paragraph = make_explanation_paragraph(reason_groups, pd_hat, credit_grade)
 
         st.session_state.prediction_ready = True
         st.session_state.saved_applicant = applicant
@@ -1114,8 +1152,8 @@ if run_btn:
         st.session_state.saved_row_df = row_df
         st.session_state.saved_macro_dict = macro_dict
         st.session_state.saved_grouped_contrib_df = grouped_contrib_df
-        st.session_state.saved_risk_bucket = risk_bucket
-        st.session_state.saved_risk_class = risk_class
+        st.session_state.saved_credit_grade = credit_grade
+        st.session_state.saved_grade_class = grade_class
         st.session_state.saved_recommendation = recommendation
         st.session_state.saved_reason_groups = reason_groups
         st.session_state.saved_explanation_paragraph = explanation_paragraph
@@ -1136,8 +1174,8 @@ else:
     row_df = st.session_state.saved_row_df
     macro_dict = st.session_state.saved_macro_dict
     grouped_contrib_df = st.session_state.saved_grouped_contrib_df
-    risk_bucket = st.session_state.saved_risk_bucket
-    risk_class = st.session_state.saved_risk_class
+    credit_grade = st.session_state.saved_credit_grade
+    grade_class = st.session_state.saved_grade_class
     recommendation = st.session_state.saved_recommendation
     reason_groups = st.session_state.saved_reason_groups
     explanation_paragraph = st.session_state.saved_explanation_paragraph
@@ -1155,7 +1193,7 @@ else:
     with c1:
         render_kpi_card("Predicted PD", f"{pd_hat:.2%}")
     with c2:
-        render_kpi_card("Risk Bucket", risk_bucket, highlight=True, value_class=risk_class)
+        render_kpi_card("Credit Grade", credit_grade, highlight=True, value_class=grade_class)
     with c3:
         render_kpi_card("Recommendation", recommendation)
     with c4:
@@ -1180,12 +1218,14 @@ else:
                 unsafe_allow_html=True
             )
 
-            legend_cols = st.columns(4)
+            legend_cols = st.columns(6)
             legend_data = [
-                ("#86efac", "Low (<5%)"),
-                ("#fde68a", "Moderate (<10%)"),
-                ("#fdba74", "Elevated (<20%)"),
-                ("#fca5a5", "High (<100%)"),
+                ("#86efac", "A"),
+                ("#bbf7d0", "B"),
+                ("#fde68a", "C"),
+                ("#fdba74", "D"),
+                ("#fca5a5", "E"),
+                ("#f87171", "F"),
             ]
             for col, (color, label) in zip(legend_cols, legend_data):
                 with col:
@@ -1320,6 +1360,7 @@ else:
 
         sim_pd, _, _, _ = predict_single_applicant(sim_applicant, application_date)
         delta = sim_pd - pd_hat
+        sim_grade = get_credit_grade(sim_pd)
 
         pb1, pb2, pb3 = st.columns([1, 0.2, 1])
         with pb1:
@@ -1345,6 +1386,7 @@ else:
                 <div class="pd-box">
                     <div class="pd-box-label">Simulated PD</div>
                     <div class="pd-box-value">{sim_pd:.2%}</div>
+                    <div style="font-size:14px; color:#64748b; margin-top:8px;">Grade: <strong>{sim_grade}</strong></div>
                     <div class="{delta_class}">{delta_text}</div>
                 </div>
                 """,
