@@ -16,7 +16,11 @@
     "pub_rec",
     "inq_last_6mths",
     "mort_acc",
-    "revol_bal"
+    "revol_bal",
+    "Inflation_L6",
+    "FedFunds_L3",
+    "HomePrices_L12",
+    "UNRATE_L6"
   ],
   "feature_cols": [
     "term",
@@ -33,6 +37,10 @@
     "pub_rec",
     "inq_last_6mths",
     "mort_acc",
-    "revol_bal"
+    "revol_bal",
+    "Inflation_L6",
+    "FedFunds_L3",
+    "HomePrices_L12",
+    "UNRATE_L6"
   ]
 }
