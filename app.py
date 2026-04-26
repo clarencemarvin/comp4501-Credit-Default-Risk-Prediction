@@ -674,7 +674,7 @@ pretty_raw_name_map = {
     "delinq_2yrs": "Recent delinquencies",
     "pub_rec": "Public records",
     "inq_last_6mths": "Recent credit inquiries",
-    "mort_acc": "Mortgage accounts",
+    "int_rate": "Interest rate",
     "revol_bal": "Revolving balance",
     "Inflation_L6": "Inflation backdrop",
     "FedFunds_L3": "Fed funds backdrop",
@@ -968,7 +968,7 @@ saved = st.session_state.saved_applicant
 
 application_date = st.sidebar.date_input(
     "Application Date",
-    value=st.session_state.saved_application_date if st.session_state.saved_application_date else pd.Timestamp("2018-01-01").date()
+    value=st.session_state.saved_application_date if st.session_state.saved_application_date else pd.Timestamp("2026-05-05").date()
 )
 
 st.sidebar.markdown('<div class="divider-soft"></div>', unsafe_allow_html=True)
@@ -993,7 +993,7 @@ term = st.sidebar.selectbox(
 home_ownership = st.sidebar.selectbox(
     "Home Ownership",
     home_ownership_options,
-    index=0 if not saved else home_ownership_options.index(saved["home_ownership"])
+    index=1 if not saved else home_ownership_options.index(saved["home_ownership"])
 )
 
 purpose = st.sidebar.selectbox(
@@ -1006,7 +1006,7 @@ purpose = st.sidebar.selectbox(
 emp_length = st.sidebar.selectbox(
     "Employment Length",
     emp_length_options,
-    index=3 if not saved else emp_length_options.index(saved["emp_length"])
+    index=7 if not saved else emp_length_options.index(saved["emp_length"])
 )
 
 st.sidebar.markdown('<div class="divider-soft"></div>', unsafe_allow_html=True)
@@ -1015,7 +1015,7 @@ fico_range_low = st.sidebar.number_input(
     "FICO Score",
     min_value=300,
     max_value=850,
-    value=680 if not saved else int(saved["fico_range_low"]),
+    value=740 if not saved else int(saved["fico_range_low"]),
     step=1
 )
 
@@ -1023,7 +1023,7 @@ loan_amnt = st.sidebar.number_input(
     "Loan Amount ($)",
     min_value=500,
     max_value=100000,
-    value=15000 if not saved else int(saved["loan_amnt"]),
+    value=12000 if not saved else int(saved["loan_amnt"]),
     step=500
 )
 
@@ -1031,7 +1031,7 @@ revol_util = st.sidebar.number_input(
     "Revolving Utilization (%)",
     min_value=0.0,
     max_value=150.0,
-    value=45.0 if not saved else float(saved["revol_util"]),
+    value=35.0 if not saved else float(saved["revol_util"]),
     step=0.1
 )
 
@@ -1039,7 +1039,7 @@ annual_inc = st.sidebar.number_input(
     "Annual Income ($)",
     min_value=0.0,
     max_value=1000000.0,
-    value=70000.0 if not saved else float(saved["annual_inc"]),
+    value=85000.0 if not saved else float(saved["annual_inc"]),
     step=1000.0
 )
 
@@ -1055,7 +1055,7 @@ open_acc = st.sidebar.number_input(
     "Open Accounts",
     min_value=0,
     max_value=100,
-    value=8 if not saved else int(saved["open_acc"]),
+    value=10 if not saved else int(saved["open_acc"]),
     step=1
 )
 
@@ -1079,23 +1079,23 @@ inq_last_6mths = st.sidebar.number_input(
     "Recent Inquiries (6m)",
     min_value=0,
     max_value=50,
-    value=1 if not saved else int(saved["inq_last_6mths"]),
+    value=0 if not saved else int(saved["inq_last_6mths"]),
     step=1
 )
 
-mort_acc = st.sidebar.number_input(
-    "Mortgage Accounts",
-    min_value=0,
-    max_value=50,
-    value=0 if not saved else int(saved["mort_acc"]),
-    step=1
+int_rate = st.sidebar.number_input(
+    "Interest Rate (%)",
+    min_value=0.0,
+    max_value=40.0,
+    value=11.5 if not saved else float(saved["int_rate"]),
+    step=0.1
 )
 
 revol_bal = st.sidebar.number_input(
     "Revolving Balance ($)",
     min_value=0.0,
     max_value=500000.0,
-    value=12000.0 if not saved else float(saved["revol_bal"]),
+    value=8000.0 if not saved else float(saved["revol_bal"]),
     step=500.0
 )
 
@@ -1124,6 +1124,7 @@ if run_btn:
         "emp_length": emp_length,
         "fico_range_low": fico_range_low,
         "loan_amnt": loan_amnt,
+        "int_rate": int_rate,
         "dti": dti,
         "revol_util": revol_util,
         "annual_inc": annual_inc,
@@ -1131,7 +1132,6 @@ if run_btn:
         "delinq_2yrs": delinq_2yrs,
         "pub_rec": pub_rec,
         "inq_last_6mths": inq_last_6mths,
-        "mort_acc": mort_acc,
         "revol_bal": revol_bal,
     }
 
@@ -1341,12 +1341,10 @@ else:
             unsafe_allow_html=True
         )
 
-        r2c1, r2c2, r2c3 = st.columns(3)
+        r2c1, r2c2 = st.columns(2)
         with r2c1:
             sim_inq = st.slider("Recent Inquiries", 0, 50, int(applicant["inq_last_6mths"]), step=1)
         with r2c2:
-            sim_mort = st.slider("Mortgage Accounts", 0, 50, int(applicant["mort_acc"]), step=1)
-        with r2c3:
             sim_revol_bal = st.slider("Revolving Balance", 0, 500000, int(applicant["revol_bal"]), step=500, format="$%d")
 
         sim_applicant = applicant.copy()
@@ -1355,7 +1353,6 @@ else:
         sim_applicant["annual_inc"] = sim_income
         sim_applicant["fico_range_low"] = sim_fico
         sim_applicant["inq_last_6mths"] = sim_inq
-        sim_applicant["mort_acc"] = sim_mort
         sim_applicant["revol_bal"] = sim_revol_bal
 
         sim_pd, _, _, _ = predict_single_applicant(sim_applicant, application_date)
