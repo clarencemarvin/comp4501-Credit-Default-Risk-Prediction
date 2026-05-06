@@ -1,0 +1,21 @@
+# --- Core Data Processing ---
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# --- Macro Data Retrieval (FRED API) ---
+fredapi>=0.5.0
+pyfredapi>=0.10.0
+
+# --- Machine Learning & Credit Risk ---
+scikit-learn>=1.2.0
+xgboost>=1.7.0
+lightgbm>=3.3.0
+
+# --- Model Interpretability & Significance ---
+shap>=0.41.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# --- Stability & Stats ---
+statsmodels>=0.14.0
