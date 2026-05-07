@@ -1,13 +1,81 @@
-streamlit
+# --- Core Data Processing ---
 numpy==2.4.2
 pandas==2.3.2
-matplotlib==3.10.6
-plotly==6.3.0
-shap==0.51.0
-pandas_datareader==0.10.0
-joblib==1.5.2
-optuna==4.5.0
 scipy==1.16.2
+polars
+polars-runtime-32
+
+# --- Machine Learning, Modeling & Feature Engineering ---
 scikit-learn==1.7.2
 xgboost==3.0.5
 lightgbm==4.6.0
+statsmodels>=0.14.0
+optuna==4.5.0
+category-encoders
+mrmr-selection
+patsy
+
+# --- Data Visualization & Interpretability ---
+matplotlib==3.10.6
+seaborn>=0.12.0
+plotly==6.3.0
+shap==0.51.0
+matplotlib-inline
+
+# --- Data Retrieval & APIs ---
+pandas_datareader==0.10.0
+fredapi>=0.5.0
+pyfredapi>=0.10.0
+
+# --- Web Applications & UI ---
+streamlit
+
+# --- Jupyter/IPython Environment & Debugging ---
+ipython
+ipykernel
+jupyter_client
+jupyter_core
+comm
+debugpy
+jedi
+nest-asyncio
+parso
+pexpect
+pickleshare
+prompt-toolkit
+ptyprocess
+pyzmq
+tornado
+traitlets
+appnope
+asttokens
+executing
+pure_eval
+stack_data
+
+# --- Utilities, System & Miscellaneous ---
+joblib==1.5.2
+tqdm
+pillow
+jinja2
+markupsafe
+pygments
+python-dateutil
+pytz
+tzdata
+packaging
+platformdirs
+psutil
+six
+typing_extensions
+wcwidth
+decorator
+exceptiongroup
+threadpoolctl
+
+# --- Low-Level Plotting/Graphics Dependencies ---
+contourpy
+cycler
+fonttools
+kiwisolver
+pyparsing
